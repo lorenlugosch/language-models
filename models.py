@@ -86,9 +86,44 @@ class LanguageModel(torch.nn.Module):
 				decoder_input = y[:,u-1]
 			out, state = self.forward_one_step(decoder_input, state)
 			outs.append(out)
-		out = torch.stack(outs, dim=1)
+		out = torch.stack(outs, dim=1).log_softmax(2)
+
+		if self.use_label_smoothing:
+			y_one_hot = torch.zeros().to(y.device)
+			for i in range(batch_size):
+				for u in range(U[i]):
+					y_one_hot[i,u,y[i,u]] = 1
+			uniform = torch.ones(y_one_hot.shape) / self.num_outputs
+			y_vector = 0.9 * y_one_hot + 0.1 * uniform
+		else:
+			y_one_hot = torch.zeros().to(y.device)
+			for i in range(batch_size):
+				for u in range(U[i]):
+					y_one_hot[i,u,y[i,u]] = 1
+			y_vector = y_one_hot
+		log_probs_u = (out * y_vector).sum(2)
 
 		log_probs = []
 		for i in range(batch_size):
-			log_prob = 
+			log_prob = log_probs_u[i, :U[i]].sum()
 		return log_probs
+
+
+	def sample(self, U):
+		"""
+		Produce a sample of length U
+		"""
+		state = torch.stack([self.initial_state] * 1)
+		if next(self.parameters()).is_cuda:
+			state = state.cuda()
+
+		y_sampled = []
+		for u in range(U):
+			if u == 0:
+                                decoder_input = torch.tensor([self.start_symbol] * 1).to(state.device)
+                        else:
+                                decoder_input = torch.tensor([y_sampled[-1]] * 1).to(state.device)
+                        out, state = self.forward_one_step(decoder_input, state)
+			y_sampled.append(out.max(1)[1].item())
+
+		return y_sampled

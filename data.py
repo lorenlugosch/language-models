@@ -41,6 +41,7 @@ def read_config(config_file):
 	config.gamma=float(parser.get("training", "gamma"))
 	config.batch_size=int(parser.get("training", "batch_size"))
 	config.num_epochs=int(parser.get("training", "num_epochs"))
+	config.use_label_smoothing=parser.get("training", "num_epochs")=="True"
 
 	#[inference]
 	config.beam_width=int(parser.get("inference", "beam_width"))
