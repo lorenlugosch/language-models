@@ -89,17 +89,11 @@ class LanguageModel(torch.nn.Module):
 		out = torch.stack(outs, dim=1).log_softmax(2)
 
 		if self.use_label_smoothing:
-			y_one_hot = torch.zeros(batch_size, U_max, self.num_outputs).to(y.device)
-			for i in range(batch_size):
-				for u in range(U[i]):
-					y_one_hot[i,u,y[i,u]] = 1
+			y_one_hot = torch.nn.functional.one_hot(y, num_classes=self.num_outputs)
 			uniform = torch.ones(y_one_hot.shape) / self.num_outputs
 			y_vector = 0.9 * y_one_hot + 0.1 * uniform
 		else:
-			y_one_hot = torch.zeros(batch_size, U_max, self.num_outputs).to(y.device)
-			for i in range(batch_size):
-				for u in range(U[i]):
-					y_one_hot[i,u,y[i,u]] = 1
+			y_one_hot = torch.nn.functional.one_hot(y, num_classes=self.num_outputs)
 			y_vector = y_one_hot
 		log_probs_u = (out * y_vector).sum(2)
 
@@ -111,7 +105,7 @@ class LanguageModel(torch.nn.Module):
 		return log_probs
 
 
-	def sample(self, U):
+	def sample(self, U, temperature=1.):
 		"""
 		Produce a sample of length U
 		"""
@@ -126,6 +120,7 @@ class LanguageModel(torch.nn.Module):
 			else:
 				decoder_input = torch.tensor([y_sampled[-1]] * 1).to(state.device)
 			out, state = self.forward_one_step(decoder_input, state)
-			y_sampled.append(out.max(1)[1].item())
+			out = out + torch.randn(out.shape).to(out.device) * temperature
+			y_sampled.append(out[:, :self.num_outputs-1].max(1)[1].item())
 
 		return y_sampled
