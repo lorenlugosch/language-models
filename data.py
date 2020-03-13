@@ -48,7 +48,7 @@ def read_config(config_file):
 
 	return config
 
-def get_ASR_datasets(config):
+def get_text_datasets(config):
 	"""
 	config: Config object (contains info about model and training)
 	"""
@@ -116,7 +116,7 @@ class TextDataset(torch.utils.data.Dataset):
 	def __getitem__(self, idx):
 		if not self.tokenizer_sampling: y = self.tokenizer.EncodeAsIds(self.df.transcript[idx])
 		if self.tokenizer_sampling: y = self.tokenizer.SampleEncodeAsIds(self.df.transcript[idx], -1, 0.1)
-		if self.add_eos: y += self.tokenizer.eos_id()
+		if self.add_eos: y += [self.tokenizer.eos_id()]
 		return (y, idx)
 
 class Collate:
@@ -132,6 +132,8 @@ class Collate:
 		batch_size = len(batch)
 		for index in range(batch_size):
 			y_,idx = batch[index]
+			y.append(torch.tensor(y_).long())
+			idxs.append(idx)
 
 		batch_size = len(idxs) # in case we threw some away
 
